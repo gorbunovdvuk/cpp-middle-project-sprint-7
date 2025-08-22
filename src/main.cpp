@@ -19,8 +19,6 @@
 
 namespace {
 
-constexpr std::string_view delimiter = "\r\n\r\n";
-
 void init_logging(std::string app, std::string level = "debug") {
     auto console = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     console->set_pattern("[%Y-%m-%d %H:%M:%S.%e %z] [%^%l%$] [tid %t] [%s:%# %!] [%n] %v");
@@ -40,18 +38,7 @@ asio::awaitable<void> session(asio::ip::tcp::socket client_socket) {
         co_await asio::async_read_until(client_socket, asio::dynamic_buffer(request_buffer), delimiter, asio::use_awaitable);
         SPDLOG_INFO("received request, size: {}", request_buffer.size());
 
-        size_t request_eor = request_buffer.find(delimiter);
-        size_t request_first_line_end = request_buffer.find("\r\n");
-        std::string_view request_line = std::string_view(request_buffer).substr(0, request_first_line_end);
-        SPDLOG_INFO("request: {}", request_line);
-
-        std::string_view request_headers_lines = std::string_view(request_buffer)
-            .substr(request_first_line_end + 2, request_eor - request_first_line_end - 2);
-
-        Headers request_headers(request_headers_lines);
-        // SPDLOG_INFO("request headers: {}", request_headers.headers());
-
-        auto host_port = findHostPort(request_headers);
+        auto host_port = findHostPort(request_buffer);
         if (!host_port.has_value()) {
             throw std::runtime_error("Host line not found");
         }
@@ -84,16 +71,8 @@ asio::awaitable<void> session(asio::ip::tcp::socket client_socket) {
         SPDLOG_INFO("received response from origin_server, size: {} host: {} port: {}", response_buffer.size(), host.to_string(), port);
 
         size_t response_eor = response_buffer.find(delimiter);
-        size_t response_first_line_end = response_buffer.find("\r\n");
-        std::string_view response_line = std::string_view(response_buffer).substr(0, response_first_line_end);
-        SPDLOG_INFO("response: {} host: {} port: {}", response_line, host.to_string(), port);
-        std::string_view response_headers_lines = std::string_view(response_buffer)
-            .substr(response_first_line_end + 2, response_eor - response_first_line_end - 2);
 
-        Headers response_headers(response_headers_lines);
-        // SPDLOG_INFO("headers: {}", response_headers.headers());
-
-        size_t content_length = findContentLength(response_headers).value();
+        size_t content_length = findContentLength(response_buffer).value();
         SPDLOG_INFO("content-length: {}", content_length);
 
         co_await asio::async_write(client_socket, asio::buffer(response_buffer.data(), response_buffer.size()), asio::use_awaitable);
