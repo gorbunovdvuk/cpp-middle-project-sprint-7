@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [initial, development]
+  pull_request:
+    branches: [initial]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Stub gitconfig for devcontainers
+        run: |
+          printf "[user]\n\tname = CI\n\temail = ci@local\n" > ~/.gitconfig
+
+      - name: Build + test inside dev-container
+        uses: devcontainers/ci@v0.3
+        with:
+          runCmd: |
+            conan build . \
+              --build=missing \
+              --output-folder build \
+              -s build_type=Debug
+
+            ctest --test-dir build/build --output-on-failure --verbose

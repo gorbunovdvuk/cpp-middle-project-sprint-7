@@ -2,11 +2,11 @@
 #include "headers.h"
 
 TEST(iterHeaders, Empty) {
-  // code here
+
 }
 
 TEST(iterHeaders, SkipRequestLine) {
-  // code here
+
 }
 
 TEST(iterHeaders, SingleHeader) {
